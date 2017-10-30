@@ -35,9 +35,10 @@ def get_labelname(labelmap, labels):
     return labelnames
 
 class CaffeDetection:
-    def __init__(self, gpu_id, model_def, model_weights, image_resize, labelmap_file):
-        caffe.set_device(gpu_id)
-        caffe.set_mode_gpu()
+    #def __init__(self, gpu_id, model_def, model_weights, image_resize, labelmap_file):
+    def __init__(self, model_def, model_weights, image_resize, labelmap_file):
+        #caffe.set_device(gpu_id)
+        caffe.set_mode_cpu()
 
         self.image_resize = image_resize
         # Load the net in the test phase for inference, and configure input preprocessing.
@@ -107,7 +108,8 @@ class CaffeDetection:
 
 def main(args):
     '''main '''
-    detection = CaffeDetection(args.gpu_id,
+    #detection = CaffeDetection(args.gpu_id,
+    detection = CaffeDetection(
                                args.model_def, args.model_weights,
                                args.image_resize, args.labelmap_file)
     result = detection.detect(args.image_file)
@@ -133,16 +135,19 @@ def main(args):
 def parse_args():
     '''parse args'''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
+#    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     parser.add_argument('--labelmap_file',
-                        default='data/VOC0712/labelmap_voc.prototxt')
+                        #default='data/VOC0712/labelmap_voc.prototxt')
+                        default='/Users/pitaloveu/WORKING_LIB/ssd_caffe/data/VOC0712/labelmap_voc.prototxt')
     parser.add_argument('--model_def',
-                        default='models/VGGNet/VOC0712/SSD_300x300/deploy.prototxt')
+                        #default='models/VGGNet/VOC0712/SSD_300x300/deploy.prototxt')
+                        default='/Users/pitaloveu/WORKING_DATA/models/VGGNet/VOC0712/SSD_300x300/deploy.prototxt')
     parser.add_argument('--image_resize', default=300, type=int)
     parser.add_argument('--model_weights',
-                        default='models/VGGNet/VOC0712/SSD_300x300/'
+                        #default='models/VGGNet/VOC0712/SSD_300x300/'
+                        default='/Users/pitaloveu/WORKING_DATA/models/VGGNet/VOC0712/SSD_300x300/'
                         'VGG_VOC0712_SSD_300x300_iter_120000.caffemodel')
-    parser.add_argument('--image_file', default='examples/images/fish-bike.jpg')
+    parser.add_argument('--image_file', default='../../examples/images/fish-bike.jpg')
     return parser.parse_args()
 
 if __name__ == '__main__':
