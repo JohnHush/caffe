@@ -154,6 +154,13 @@ message AnnotatedDatum {
   repeated AnnotationGroup annotation_group = 3;
 }
 
+message MultiLabelDatum {
+// follow the style of AnnotatedDatum
+// we introduce a new type of datum composing multi attribute
+  optional Datum datum = 1;
+  repeated int32 mt_label = 2;
+}
+
 message FillerParameter {
   // The filler type.
   optional string type = 1 [default = 'constant'];

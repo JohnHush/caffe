@@ -183,6 +183,9 @@ inline bool ReadImageToDatum(const string& filename, const int label,
 bool DecodeDatumNative(Datum* datum);
 bool DecodeDatum(Datum* datum, bool is_color);
 
+bool ReadImageToMultiLabelDatum(const string& filename, const std::vector<int>& labels,
+     const int height, const int width, const int min_dim, const int max_dim,
+     const bool is_color, const std::string & encoding, MultiLabelDatum* multilabel_datum);
 
 void GetImageSize(const string& filename, int* height, int* width);
 

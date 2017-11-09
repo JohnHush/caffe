@@ -181,6 +181,48 @@ bool ReadImageToDatum(const string& filename, const int label,
   }
 }
 
+bool ReadImageToMultiLabelDatum(const string& filename, const std::vector<int>& labels,
+    const int height, const int width, const int min_dim, const int max_dim,
+    const bool is_color, const std::string & encoding, MultiLabelDatum* multilabel_datum) {
+  cv::Mat cv_img = ReadImageToCVMat(filename, height, width, min_dim, max_dim,
+                                    is_color);
+
+  if (cv_img.data) {
+    if (encoding.size()) {
+      if ( (cv_img.channels() == 3) == is_color && !height && !width &&
+          !min_dim && !max_dim && matchExt(filename, encoding) ) {
+        multilabel_datum->mutable_datum()->set_channels(cv_img.channels());
+        multilabel_datum->mutable_datum()->set_height(cv_img.rows);
+        multilabel_datum->mutable_datum()->set_width(cv_img.cols);
+
+				// set multi label
+				multilabel_datum->clear_mt_label();
+				for( int i = 0 ; i < labels.size() ; ++ i )
+					multilabel_datum->add_mt_label( labels[i] );
+        return ReadFileToDatum(filename, -1 , multilabel_datum->mutable_datum() );
+      }
+			multilabel_datum->clear_mt_label();
+			for( int i = 0 ; i < labels.size() ; ++ i )
+				multilabel_datum->add_mt_label( labels[i] );
+      EncodeCVMatToDatum(cv_img, encoding, multilabel_datum->mutable_datum() );
+			// to keep consistency with front, we set label in multilabel_datum->mutalbe_datum all -1
+			// actually this label is useless, we won't use it;
+      multilabel_datum->mutable_datum()->set_label(-1);
+      return true;
+    }
+		multilabel_datum->clear_mt_label();
+		for( int i = 0 ; i < labels.size() ; ++ i )
+			multilabel_datum->add_mt_label( labels[i] );
+    CVMatToDatum(cv_img, multilabel_datum->mutable_datum() );
+		// to keep consistency with front, we set label in multilabel_datum->mutalbe_datum all -1
+		// actually this label is useless, we won't use it;
+    multilabel_datum->mutable_datum()->set_label(-1);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 void GetImageSize(const string& filename, int* height, int* width) {
   cv::Mat cv_img = cv::imread(filename);
   if (!cv_img.data) {
