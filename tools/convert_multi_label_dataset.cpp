@@ -146,6 +146,8 @@ int main(int argc, char** argv) {
 	{
     bool status = true;
     std::string enc = encode_type;
+		if ( !encoded )
+			enc = "";
 //    if (encoded && !enc.size())
 //		{
       // Guess the encoding type from the file name
