@@ -22,11 +22,12 @@ for key , value in lmdb_cursor:
     data = caffe.io.datum_to_array(MLD.datum)
     print data.shape
     mt_label = MLD.mt_label
+    print mt_label
     image = data.transpose(1,2,0)
     cv2.imshow( 'cv2.png' , image )
-    cv2.waitKey(300)
+    cv2.waitKey(0)
     count = count +1
-    if count > 10:
+    if count > 15:
         break
 
 cv2.destroyAllWindows()

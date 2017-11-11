@@ -38,12 +38,16 @@ void MultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].data_.Reshape(top_shape);
   }
+
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
   // label
   if (this->output_labels_) {
-    vector<int> label_shape( batch_size , MLD.mt_label_size() );
+//    vector<int> label_shape( batch_size , MLD.mt_label_size() );
+    vector<int> label_shape( 2, 1 );
+		label_shape[0] = batch_size;
+		label_shape[1] = MLD.mt_label_size();
     top[1]->Reshape(label_shape);
     for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
       this->prefetch_[i].label_.Reshape(label_shape);
@@ -93,11 +97,13 @@ void MultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
     if (this->output_labels_) {
 			int label_offset = MLD.mt_label_size();
-			top_label += item_id * label_offset;
+
 			for ( int i = 0 ; i < label_offset ; ++ i )
 				top_label[i] = MLD.mt_label(i);
-//      top_label[item_id] = datum.label();
+
+			top_label += label_offset;
     }
+
 
     trans_time += timer.MicroSeconds();
 
