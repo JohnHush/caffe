@@ -526,6 +526,8 @@ message LayerParameter {
   optional LRNParameter lrn_param = 118;
   optional MemoryDataParameter memory_data_param = 119;
   optional MultiBoxLossParameter multibox_loss_param = 201;
+	optional MultiLabelSigmoidCrossEntropyLossParameter 
+								multi_label_sigmoid_cross_entropy_loss = 208;
   optional MVNParameter mvn_param = 120;
   optional NormalizeParameter norm_param = 206;
   optional ParameterParameter parameter_param = 145;
@@ -1150,6 +1152,11 @@ message HingeLossParameter {
   }
   // Specify the Norm to use L1 or L2
   optional Norm norm = 1 [default = L1];
+}
+
+message MultiLabelSigmoidCrossEntropyLossParameter {
+	repeated float positive_ratio = 1;
+	optional float epsilon = 2 [default = 1];
 }
 
 message ImageDataParameter {
