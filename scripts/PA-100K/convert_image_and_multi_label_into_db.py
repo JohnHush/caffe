@@ -22,11 +22,11 @@ Db_file = 'train_lmdb'
 backend = 'lmdb'
 gray = False
 encode_type = 'jpg'
-encoded = True
+encoded = False
 min_dim = 0
 max_dim = 0
-resize_height = 0
-resize_width = 0
+resize_height = 227
+resize_width = 227
 shuffle = False
 
 for name in txt_names:
