@@ -15,7 +15,7 @@ int main( int argc , char** argv )
 #ifndef GFLAGS_GFLAGS_H_
 	namespace gflags = google;
 #endif
-
+/*
 	caffe::Caffe::set_mode( caffe::Caffe::CPU );
 	std::shared_ptr<caffe::Net<float> > test_net;
 	test_net.reset( new caffe::Net<float>( FLAGS_deploy_model , caffe::TEST ) );
@@ -34,6 +34,6 @@ int main( int argc , char** argv )
 
 	caffe::WriteProtoToBinaryFile( blobProto1 , "/Users/pitaloveu/testtest/PROTO1" );
 	caffe::WriteProtoToBinaryFile( blobProto2 , "/Users/pitaloveu/testtest/PROTO2" );
-
+*/
 	return 1;
 }
