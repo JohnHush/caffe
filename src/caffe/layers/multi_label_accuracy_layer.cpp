@@ -82,7 +82,7 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 	for (int i = 0; i < batch_number_ ; ++i) {
 		for (int j = 0; j < attributes_number_ ; ++j) {
 			const int label_value =
-				static_cast<int>(bottom_label[i * attributes_number_ + j]);
+				static_cast<Dtype>(bottom_label[i * attributes_number_ + j]);
 			const Dtype predict_value =
 				static_cast<Dtype>(bottom_data[i * attributes_number_ + j]);
 
