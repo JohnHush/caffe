@@ -86,7 +86,7 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 			const Dtype predict_value =
 				static_cast<Dtype>(bottom_data[i * attributes_number_ + j]);
 
-			bool ifright = std::fabs( predict_value - label_value ) < 0.5 ;
+			bool ifright = ( std::fabs( predict_value - label_value ) < 0.5 );
 				//		if (has_ignore_label_ && label_value == ignore_label_) {
 				//			continue;
 				//		}
