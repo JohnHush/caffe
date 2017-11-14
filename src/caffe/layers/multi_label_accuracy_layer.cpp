@@ -137,7 +137,7 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 		top[0]->mutable_cpu_data()[0] += top1_holder_.mutable_cpu_data()[i]
 			/ attributes_number_;
 		
-  LOG(INFO) << "Accuracy: " << top[0]->mutable_cpu_data()[0];
+//  LOG(INFO) << "Accuracy: " << top[0]->mutable_cpu_data()[0];
   // Accuracy layer should not be used as a loss function.
 }
 
