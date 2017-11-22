@@ -165,7 +165,7 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(MultiLabelSigmoidCrossEntropyLossLayer);
+//STUB_GPU(MultiLabelSigmoidCrossEntropyLossLayer);
 #endif
 
 INSTANTIATE_CLASS(MultiLabelSigmoidCrossEntropyLossLayer);
