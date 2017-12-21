@@ -551,6 +551,8 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional VideoDataParameter video_data_param = 207;
   optional WindowDataParameter window_data_param = 129;
+
+	optional LSigmoidParameter lsigmoid_param = 209;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1932,4 +1934,11 @@ message PReLUParameter {
   optional FillerParameter filler = 1;
   // Whether or not slope paramters are shared across channels.
   optional bool channel_shared = 2 [default = false];
+}
+
+message LSigmoidParameter {
+  // Initial value of a_i. Default is a_i=0.25 for all i.
+  optional FillerParameter filler = 1;
+  // Whether or not slope paramters are shared across channels.
+  // optional bool channel_shared = 2 [default = false];
 }

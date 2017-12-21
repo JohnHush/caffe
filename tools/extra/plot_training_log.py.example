@@ -142,7 +142,7 @@ def plot_chart(chart_type, path_to_png, path_to_log_list):
     plt.xlabel(x_axis_field)
     plt.ylabel(y_axis_field)
     plt.savefig(path_to_png)
-    plt.show()
+    #plt.show()
 
 def print_help():
     print """This script mainly serves as the basis of your customizations.
