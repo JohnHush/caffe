@@ -1,6 +1,7 @@
 #!/bin/bash
 
-root_dir=$HOME/WORKING_DATA/VOCdevkit/
+#root_dir=$HOME/WORKING_DATA/VOCdevkit/
+root_dir=$CAFFE_ROOT/data/VOCdevkit/
 sub_dir=ImageSets/Main
 bash_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for dataset in trainval test
@@ -21,13 +22,13 @@ do
 
     img_file=$bash_dir/$dataset"_img.txt"
     cp $dataset_file $img_file
-    sed -i "" "s/^/$name\/JPEGImages\//g" $img_file
-    sed -i "" "s/$/.jpg/g" $img_file
+    sed -i  "s/^/$name\/JPEGImages\//g" $img_file
+    sed -i "s/$/.jpg/g" $img_file
 
     label_file=$bash_dir/$dataset"_label.txt"
     cp $dataset_file $label_file
-    sed -i "" "s/^/$name\/Annotations\//g" $label_file
-    sed -i "" "s/$/.xml/g" $label_file
+    sed -i "s/^/$name\/Annotations\//g" $label_file
+    sed -i "s/$/.xml/g" $label_file
 
     paste -d' ' $img_file $label_file >> $dst_file
 
