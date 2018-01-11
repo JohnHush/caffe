@@ -1908,12 +1908,27 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
 
   // Get top_k scores (with corresponding indices).
   vector<pair<float, int> > score_index_vec;
-  GetMaxScoreIndex(scores, score_threshold, top_k, &score_index_vec);
+
+
+
+//  GetMaxScoreIndex(scores, score_threshold, top_k, &score_index_vec);
+ 
+  for ( int i = 0 ; i < scores.size() ; ++i ){
+    if ( scores[i] > score_threshold )
+      score_index_vec.push_back( std::make_pair(scores[i] , i ) );
+  }
+  // sort the score pair according to the scores in descending order
+
+  std::stable_sort(score_index_vec.begin(), score_index_vec.end(),
+                   SortScorePairDescend<int>);
+
+  int count = 0;
 
   // Do nms.
   float adaptive_threshold = nms_threshold;
   indices->clear();
-  while (score_index_vec.size() != 0) {
+  while ( (score_index_vec.size() != 0 && count < top_k ) || 
+      ( score_index_vec.size() != 0 && top_k == -1 ) ) {
     const int idx = score_index_vec.front().second;
     bool keep = true;
     for (int k = 0; k < indices->size(); ++k) {
@@ -1927,12 +1942,15 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
     }
     if (keep) {
       indices->push_back(idx);
+      count ++;
     }
     score_index_vec.erase(score_index_vec.begin());
     if (keep && eta < 1 && adaptive_threshold > 0.5) {
       adaptive_threshold *= eta;
     }
   }
+
+
 }
 
 template <typename Dtype>
@@ -1941,12 +1959,26 @@ void ApplyNMSFast(const Dtype* bboxes, const Dtype* scores, const int num,
       const float eta, const int top_k, vector<int>* indices) {
   // Get top_k scores (with corresponding indices).
   vector<pair<Dtype, int> > score_index_vec;
-  GetMaxScoreIndex(scores, num, score_threshold, top_k, &score_index_vec);
+
+
+//  GetMaxScoreIndex(scores, num, score_threshold, top_k, &score_index_vec);
+
+  for ( int i = 0 ; i < num ; ++i ){
+    if ( scores[i] > score_threshold )
+      score_index_vec.push_back( std::make_pair(scores[i] , i ) );
+  }
+
+  std::sort(score_index_vec.begin(), score_index_vec.end(),
+                  SortScorePairDescend<int>);
+
+  int count =0;
+
 
   // Do nms.
   float adaptive_threshold = nms_threshold;
   indices->clear();
-  while (score_index_vec.size() != 0) {
+  while ( (score_index_vec.size() != 0 && count < top_k ) || 
+      ( score_index_vec.size() != 0 && top_k == -1 ) ) {
     const int idx = score_index_vec.front().second;
     bool keep = true;
     for (int k = 0; k < indices->size(); ++k) {
@@ -1960,6 +1992,7 @@ void ApplyNMSFast(const Dtype* bboxes, const Dtype* scores, const int num,
     }
     if (keep) {
       indices->push_back(idx);
+      count ++;
     }
     score_index_vec.erase(score_index_vec.begin());
     if (keep && eta < 1 && adaptive_threshold > 0.5) {
