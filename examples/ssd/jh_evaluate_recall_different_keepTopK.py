@@ -3,6 +3,8 @@ import caffe
 from caffe.model_libs import *
 from google.protobuf import text_format
 import numpy as np
+import bbox as bbb
+import matplotlib.pyplot as plt
 
 import math, os, shutil, stat, sys
 
@@ -57,7 +59,8 @@ def bbox_overlaps( b , q , normalized ):
                         overlaps[n,k] = iw * ih /ua
     return overlaps
 
-def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = False ):
+def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = False \
+        , low_area = None , high_area = None , area = 'all'):
     """
     gt_boxes assumes to be 2d numpy array,
     [num_gt][ batch_id , group_label , instance_id , xmin , ymin , xmax , ymax ,
@@ -69,6 +72,23 @@ def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = Fal
     to filter the qualified area boxes
     with the form [num_batch][ height , widht ]
     """
+    areas = { 'all': 0, 'small': 1, 'medium': 2, 'large': 3,
+		'96-128': 4, '128-256': 5, '256-512': 6, '512-inf': 7}
+    area_ranges = [ [0**2, 1e5**2],    # all
+		    [0**2, 32**2],     # small
+		    [32**2, 96**2],    # medium
+		    [96**2, 1e5**2],   # large
+		    [96**2, 128**2],   # 96-128
+		    [128**2, 256**2],  # 128-256
+		    [256**2, 512**2],  # 256-512
+		    [512**2, 1e5**2],  # 512-inf
+		    ]
+    assert areas.has_key(area), 'unknown area range: {}'.format(area)
+    area_range = area_ranges[areas[area]]
+
+    if low_area != None and high_area != None:
+        area_range = [ low_area , high_area ]
+
     num_pos = 0
     gt_overlaps = np.zeros(0)
 
@@ -82,12 +102,15 @@ def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = Fal
         for j in xrange( gt_boxes.shape[0] ):
             box = gt_boxes[j]
 
-            bbox = np.array( ( box[3], box[4] , box[5] , box[6] ) )
-            bbox = decode_bbox( bbox , height , width )
-
             if int(box[0]) == i:
                 if not use_diff and int(box[7]) == 1:
                     continue
+
+                bbox = decode_bbox( box[3:7] , height , width )
+                bbox_area = ( bbox[2] - bbox[0] + 1 ) * ( bbox[3] - bbox[1] + 1 )
+                if bbox_area < area_range[0] or bbox_area >= area_range[1]:
+                    continue
+
                 gt_boxes_per_image = np.hstack(( gt_boxes_per_image , bbox ))
         num_gt = gt_boxes_per_image.size / 4
         gt_boxes_per_image = gt_boxes_per_image.reshape( ( num_gt , 4) )
@@ -98,15 +121,15 @@ def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = Fal
         for j in xrange( det_boxes.shape[0] ):
             box = det_boxes[j]
 
-            bbox = np.array( ( box[3], box[4] , box[5] , box[6] ) )
-            bbox = decode_bbox( bbox , height , width )
-
             if int(box[0]) == i:
+                #bbox = np.array( ( box[3], box[4] , box[5] , box[6] ) )
+                bbox = decode_bbox( box[3:7] , height , width )
                 dt_boxes_per_image = np.hstack(( dt_boxes_per_image , bbox ))
         num_dt = dt_boxes_per_image.size /4
         dt_boxes_per_image = dt_boxes_per_image.reshape(( num_dt , 4 ))
 
-        overlaps = bbox_overlaps( dt_boxes_per_image , gt_boxes_per_image , normalized = False )
+        #overlaps = bbox_overlaps( dt_boxes_per_image , gt_boxes_per_image , normalized = False )
+        overlaps = bbb.bbox_overlaps( dt_boxes_per_image , gt_boxes_per_image )
 
         _gt_overlaps = np.zeros( (gt_boxes_per_image.shape[0]) )
         for j in xrange( gt_boxes_per_image.shape[0] ):
@@ -284,15 +307,15 @@ if __name__ == "__main__":
     make_if_not_exist(save_dir)
     make_if_not_exist(job_dir)
 
-    net = caffe.NetSpec()
-    net.data, net.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_size,
+    netProto = caffe.NetSpec()
+    netProto.data, netProto.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_size,
         train=False, output_label=True, label_map_file=label_map_file,
         transform_param=test_transform_param)
 
-    VGGNetBody(net, from_layer='data', fully_conv=True, reduced=True, dilated=True, dropout=False)
-    AddExtraLayers(net, use_batchnorm, lr_mult=lr_mult)
+    VGGNetBody(netProto, from_layer='data', fully_conv=True, reduced=True, dilated=True, dropout=False)
+    AddExtraLayers(netProto, use_batchnorm, lr_mult=lr_mult)
 
-    mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source_layers,
+    mbox_layers = CreateMultiBoxHead(netProto, data_layer='data', from_layers=mbox_source_layers,
                 use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
                 aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
                 num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
@@ -300,29 +323,24 @@ if __name__ == "__main__":
 
     conf_name = "mbox_conf"
     reshape_name = "{}_reshape".format(conf_name)
-    net[reshape_name] = L.Reshape(net[conf_name], shape=dict(dim=[0, -1, num_classes]))
+    netProto[reshape_name] = L.Reshape(netProto[conf_name], shape=dict(dim=[0, -1, num_classes]))
     softmax_name = "{}_softmax".format(conf_name)
-    net[softmax_name] = L.Softmax(net[reshape_name], axis=2)
+    netProto[softmax_name] = L.Softmax(netProto[reshape_name], axis=2)
     flatten_name = "{}_flatten".format(conf_name)
-    net[flatten_name] = L.Flatten(net[softmax_name], axis=1)
-    mbox_layers[1] = net[flatten_name]
+    netProto[flatten_name] = L.Flatten(netProto[softmax_name], axis=1)
+    mbox_layers[1] = netProto[flatten_name]
 
-    net.detection_out = L.DetectionOutput(*mbox_layers,
+    netProto.detection_out = L.DetectionOutput(*mbox_layers,
         detection_output_param=det_out_param,
         include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-    net.detection_eval = L.DetectionEvaluate(net.detection_out, net.label,
+    netProto.detection_eval = L.DetectionEvaluate(netProto.detection_out, netProto.label,
         detection_evaluate_param=det_eval_param,
         include=dict(phase=caffe_pb2.Phase.Value('TEST')))
 
     with open(test_net_file, 'w') as f:
         print('name: "{}_test"'.format(model_name), file=f)
-        print(net.to_proto(), file=f)
+        print(netProto.to_proto(), file=f)
     shutil.copy(test_net_file, job_dir)
-
-    caffe.set_device(2)
-    caffe.set_mode_gpu()
-
-    net = caffe.Net( test_net_file , weights , caffe.TEST )
 
     test_iter = num_test_image / test_batch_size
 
@@ -337,47 +355,96 @@ if __name__ == "__main__":
         _sizes = np.hstack( (_sizes , [ int(line_list[1]) , int(line_list[2]) ] ) )
         #print ( "height = %d , width = %d"%( int(line_list[1]) , int(line_list[2]) ))
     _sizes = _sizes.reshape(( _sizes.size/2 , 2 ))
-    print ( "length of the lines is %d"%len(lines))
 
-    total_num = 0
-    size_count = 0
-    gt_overlaps = np.zeros(0)
-    for iiter in xrange( test_iter ):
-        output = net.forward()
+    proposal_num_list = [ 10, 15 , 30 , 50 , 100, 200 , 300, 500 ]
 
-        batch_label = net.blobs['label'].data.copy()
-        batch_det   = net.blobs['detection_out'].data.copy()
+    for_plt = [ [] for _ in xrange(len( proposal_num_list)) ]
+    for ip , num_proposal in enumerate(proposal_num_list):
+        caffe.set_device(2)
+        caffe.set_mode_gpu()
+        num_proposal = int( num_proposal )
 
-        _overlaps , num_pos = batch_gt_overlap( batch_label[0][0] ,
-                batch_det[0][0] , test_batch_size, _sizes[ size_count:size_count +
-                    test_batch_size ,: ]  )
+        det_out_param['keep_top_k'] = num_proposal
+        netProto.update( 'detection_out' , {'detection_output_param': det_out_param } )
 
-        gt_overlaps = np.hstack( (gt_overlaps , _overlaps ) )
-        total_num += num_pos
+        with open(test_net_file, 'w') as f:
+            print('name: "{}_test"'.format(model_name), file=f)
+            print(netProto.to_proto(), file=f)
+        shutil.copy(test_net_file, job_dir)
 
-        size_count += test_batch_size
-        print ( "iter = %d"%(iiter) )
+        net = caffe.Net( test_net_file , weights , caffe.TEST )
 
-    gt_overlaps = np.sort( gt_overlaps )
-    step = 0.05
-    thresholds = np.arange( 0.5 , 0.95 + 1e-5 , step )
-    recalls = np.zeros_like( thresholds )
+        total_num = 0
+        size_count = 0
+        gt_overlaps = np.zeros(0)
+        for iiter in xrange( test_iter ):
+            output = net.forward()
 
-    for i , t in enumerate( thresholds ):
-        recalls[i] = ( gt_overlaps >= t ).sum() / float( total_num )
+            batch_label = net.blobs['label'].data.copy()
+            batch_det   = net.blobs['detection_out'].data.copy()
 
-    ar = recalls.mean()
+            _overlaps , num_pos = batch_gt_overlap( batch_label[0][0] ,
+                    batch_det[0][0] , test_batch_size, _sizes[ size_count:size_count +
+                        test_batch_size ,: ]  , area = 'all')
 
-    def recall_at(t):
-        ind = np.where(thresholds > t-1e-5)[0][0]
-        return recalls[ind]
+            gt_overlaps = np.hstack( (gt_overlaps , _overlaps ) )
+            total_num += num_pos
 
-    print( " ar = %f"%(ar))
-    print( "Recall@0.5:{:.3f}".format(recall_at(0.5)))
-    print( "Recall@0.6:{:.3f}".format(recall_at(0.6)))
-    print( "Recall@0.7:{:.3f}".format(recall_at(0.7)))
-    print( "Recall@0.8:{:.3f}".format(recall_at(0.8)))
-    print( "Recall@0.9:{:.3f}".format(recall_at(0.9)))
+            size_count += test_batch_size
+            if iiter % 20 == 0:
+               print ( "iter = %d , proposal# = %d"%(iiter, num_proposal) )
 
-    print ( "total num is %d"%(total_num) )
+        gt_overlaps = np.sort( gt_overlaps )
+        step = 0.05
+        thresholds = np.arange( 0.5 , 0.95 + 1e-5 , step )
+        recalls = np.zeros_like( thresholds )
 
+        for i , t in enumerate( thresholds ):
+            recalls[i] = ( gt_overlaps >= t ).sum() / float( total_num )
+
+        ar = recalls.mean()
+
+        def recall_at(t):
+            ind = np.where(thresholds > t-1e-5)[0][0]
+            return recalls[ind]
+
+        for_plt[ip] = [ar , recall_at(0.5) , recall_at(0.6), recall_at(0.7), \
+                recall_at(0.8) ,recall_at(0.9) ]
+        del(net)
+
+        print( " ar = %f"%(ar))
+        print( "Recall@0.5:{:.3f}".format(recall_at(0.5)))
+        print( "Recall@0.6:{:.3f}".format(recall_at(0.6)))
+        print( "Recall@0.7:{:.3f}".format(recall_at(0.7)))
+        print( "Recall@0.8:{:.3f}".format(recall_at(0.8)))
+        print( "Recall@0.9:{:.3f}".format(recall_at(0.9)))
+        print( "total num of pos in fixed size is %d"%(total_num))
+
+    for_plt = np.array(for_plt)
+
+    #proposal_num_list = [ 10, 15 , 30 , 50 , 100 , 200 , 300, 500 ]
+    #ar
+    v1 = for_plt[:,0]
+    #recall at 0.5
+    v2 = for_plt[:,1]
+    #recall at 0.6
+    v3 = for_plt[:,2]
+    #recall at 0.7
+    v4 = for_plt[:,3]
+    #recall at 0.8
+    v5 = for_plt[:,4]
+    #recall at 0.9
+    v6 = for_plt[:,5]
+
+    plt.figure(1)
+    line1, = plt.plot( proposal_num_list , v1 , 'ko-', markerfacecolor='black', markersize=12)
+    line2, = plt.plot( proposal_num_list , v2 , 'ko-', markerfacecolor='yellow', markersize=10)
+    line3, = plt.plot( proposal_num_list , v3 , 'ko-', markerfacecolor='red',markersize=10)
+    line4, = plt.plot( proposal_num_list , v4 , 'ko-', markerfacecolor='green',markersize=10)
+    line5, = plt.plot( proposal_num_list , v5 , 'ko-', markerfacecolor='blue',markersize=10)
+    line6, = plt.plot( proposal_num_list , v6 , 'ko-', markerfacecolor='magenta',markersize=10)
+    plt.xlabel('# of proposals')
+    plt.ylabel('Recall@overlap')
+    plt.figlegend( (line1,line2,line3,line4,line5,line6) , ('Average Recall', \
+            'Recall@0.5', 'Recall@0.6', 'Recall@0.7','Recall@0.8','Recall@0.9') , 'upper right' )
+    plt.show()
