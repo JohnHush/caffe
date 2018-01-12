@@ -6,7 +6,22 @@ import numpy as np
 
 import math, os, shutil, stat, sys
 
-def bbox_overlaps( boxes , query_boxes ):
+def decode_bbox( bbox , h , w ):
+    """
+    bbox is numpy array or list
+    """
+    #clip the boxes
+    bbox = map( lambda x: max( min( x , 1.), 0. ), bbox )
+
+    #scale it
+    bbox[0] = int( bbox[0] * w )
+    bbox[1] = int( bbox[1] * h )
+    bbox[2] = int( bbox[2] * w )
+    bbox[3] = int( bbox[3] * h )
+
+    return bbox
+
+def bbox_overlaps( b , q , normalized ):
     """
     boxes: [N,4] ndarray of float
     query_boxes :[K, 4] ndarray of float
@@ -14,47 +29,66 @@ def bbox_overlaps( boxes , query_boxes ):
     return :
     overlap :[N, K] ndarray of overlaps 
     """
-    N = boxes.shape[0]
-    K = query_boxes.shape[0]
+    N = b.shape[0]
+    K = q.shape[0]
 
     overlaps = np.zeros( ( N , K) , dtype=np.float )
-    for k in xrange(K):
-        box_area = (query_boxes[k,2] - query_boxes[k,0]) * (query_boxes[k,3]
-                -query_boxes[k,1])
-        for n in xrange(N):
-            iw = min( boxes[n,2] , query_boxes[k,2] ) - max( boxes[n,0] ,
-                    query_boxes[k,0])
-            if iw > 0:
-                ih = min( boxes[n,3] , query_boxes[k,3] ) - max( boxes[n,1] ,
-                        query_boxes[k,1] )
-                if ih > 0:
-                    ua = (boxes[n,2]-boxes[n,0]) * (boxes[n,3]-boxes[n,1]) + box_area - iw * ih
+    if normalized:
+        for k in xrange(K):
+            box_area = (q[k,2] - q[k,0]) * (q[k,3] - q[k,1])
+            for n in xrange(N):
+                iw = min( b[n,2] , q[k,2] ) - max( b[n,0] , q[k,0])
+                if iw > 0:
+                    ih = min( b[n,3] , q[k,3] ) - max( b[n,1] , q[k,1] )
+                    if ih > 0:
+                        ua = (b[n,2]-b[n,0]) * (b[n,3]-b[n,1]) + box_area - iw * ih
 
-                    overlaps[n,k] = iw * ih /ua
+                        overlaps[n,k] = iw * ih /ua
+    else:
+        for k in xrange(K):
+            box_area = (q[k,2] - q[k,0]  + 1) * (q[k,3] - q[k,1] + 1 )
+            for n in xrange(N):
+                iw = min( b[n,2] , q[k,2] ) - max( b[n,0] , q[k,0]) + 1
+                if iw > 0:
+                    ih = min( b[n,3] , q[k,3] ) - max( b[n,1] , q[k,1] ) + 1
+                    if ih > 0:
+                        ua = (b[n,2]-b[n,0] + 1) * (b[n,3]-b[n,1] +1 ) + box_area - iw * ih
+
+                        overlaps[n,k] = iw * ih /ua
     return overlaps
 
-def batch_gt_overlap( gt_boxes , det_boxes , num_batch , use_diff = False ):
+def batch_gt_overlap( gt_boxes , det_boxes , num_batch , _sizes , use_diff = False ):
     """
     gt_boxes assumes to be 2d numpy array,
     [num_gt][ batch_id , group_label , instance_id , xmin , ymin , xmax , ymax ,
     diff ]
     det_boxes assumes to be 2d numpy array has the following form:
     [num_det][ batch_id , label , score , xmin , ymin , xmax , ymax ]
+
+    _sizes keep the sizes of the input image batches ..
+    to filter the qualified area boxes
+    with the form [num_batch][ height , widht ]
     """
     num_pos = 0
     gt_overlaps = np.zeros(0)
-    gt_boxes_per_image = np.zeros(0)
-    dt_boxes_per_image = np.zeros(0)
 
     for i in xrange( num_batch ):
+        height = _sizes[i][0]
+        width  = _sizes[i][1]
+
+        gt_boxes_per_image = np.zeros(0)
+        dt_boxes_per_image = np.zeros(0)
         #collect gt boxes from gt_boxes numpy ndarray
         for j in xrange( gt_boxes.shape[0] ):
             box = gt_boxes[j]
+
+            bbox = np.array( ( box[3], box[4] , box[5] , box[6] ) )
+            bbox = decode_bbox( bbox , height , width )
+
             if int(box[0]) == i:
                 if not use_diff and int(box[7]) == 1:
                     continue
-                gt_boxes_per_image = np.hstack(( gt_boxes_per_image , [ box[3] ,
-                    box[4] , box[5] , box[6] ] ))
+                gt_boxes_per_image = np.hstack(( gt_boxes_per_image , bbox ))
         num_gt = gt_boxes_per_image.size / 4
         gt_boxes_per_image = gt_boxes_per_image.reshape( ( num_gt , 4) )
 
@@ -63,13 +97,16 @@ def batch_gt_overlap( gt_boxes , det_boxes , num_batch , use_diff = False ):
         #collect all th det boxes 
         for j in xrange( det_boxes.shape[0] ):
             box = det_boxes[j]
+
+            bbox = np.array( ( box[3], box[4] , box[5] , box[6] ) )
+            bbox = decode_bbox( bbox , height , width )
+
             if int(box[0]) == i:
-                dt_boxes_per_image = np.hstack(( dt_boxes_per_image , [ box[3] ,
-                    box[4] , box[5] , box[6] ] ))
+                dt_boxes_per_image = np.hstack(( dt_boxes_per_image , bbox ))
         num_dt = dt_boxes_per_image.size /4
         dt_boxes_per_image = dt_boxes_per_image.reshape(( num_dt , 4 ))
 
-        overlaps = bbox_overlaps( dt_boxes_per_image , gt_boxes_per_image )
+        overlaps = bbox_overlaps( dt_boxes_per_image , gt_boxes_per_image , normalized = False )
 
         _gt_overlaps = np.zeros( (gt_boxes_per_image.shape[0]) )
         for j in xrange( gt_boxes_per_image.shape[0] ):
@@ -85,7 +122,7 @@ def batch_gt_overlap( gt_boxes , det_boxes , num_batch , use_diff = False ):
             overlaps[:,gt_ind] = -1
         gt_overlaps = np.hstack(( gt_overlaps , _gt_overlaps ))
 
-        return gt_overlaps , num_pos
+    return gt_overlaps , num_pos
 
 # copy the function from SSD implementation from liuwei89
 def voc_ap(rec, prec, use_07_metric=False):
@@ -229,7 +266,7 @@ if __name__ == "__main__":
     'background_label_id': background_label_id,
     'nms_param': {'nms_threshold': 0.45, 'top_k': 200},
     'keep_top_k': 200,
-    'confidence_threshold': 0.0001,
+    'confidence_threshold': 0.001,
     'code_type': code_type,
     }
 
@@ -282,76 +319,65 @@ if __name__ == "__main__":
         print(net.to_proto(), file=f)
     shutil.copy(test_net_file, job_dir)
 
-    caffe.set_device(0)
+    caffe.set_device(2)
     caffe.set_mode_gpu()
 
     net = caffe.Net( test_net_file , weights , caffe.TEST )
 
     test_iter = num_test_image / test_batch_size
-    #test_iter = 50
-    num_gt_cls = np.zeros( num_classes -1 ).astype(int)
-    num_tp_det_cls = [ [] for _ in xrange( num_classes - 1 ) ]
-    num_fp_det_cls = [ [] for _ in xrange( num_classes - 1 ) ]
 
+    # read name size file
+    f = open( name_size_file , "r" )
+    lines = f.readlines()
+
+    _sizes = np.zeros(0)
+    for line in lines:
+        line_list = line.split()
+
+        _sizes = np.hstack( (_sizes , [ int(line_list[1]) , int(line_list[2]) ] ) )
+        #print ( "height = %d , width = %d"%( int(line_list[1]) , int(line_list[2]) ))
+    _sizes = _sizes.reshape(( _sizes.size/2 , 2 ))
+    print ( "length of the lines is %d"%len(lines))
+
+    total_num = 0
+    size_count = 0
+    gt_overlaps = np.zeros(0)
     for iiter in xrange( test_iter ):
         output = net.forward()
 
-        if iiter == 2:
-            label_batch = net.blobs['label'].data.copy()
-            do = net.blobs['detection_out'].data.copy()
+        batch_label = net.blobs['label'].data.copy()
+        batch_det   = net.blobs['detection_out'].data.copy()
 
-            for ioutput in xrange( do.shape[2] ):
-                dd = do[0,0,ioutput,:]
-                print( "item = %d, label= %d , score = %6.3f , xmin=%6.3f, ymin=%6.3f, xmax=%6.3f , ymax = %6.3f"%( int(dd[0]) , int(dd[1]) ,\
-                            dd[2] , dd[3] , dd[4] , dd[5]\
-                    , dd[6] ))
-            print ( do.shape )
-#            for k, v in net.blobs.items():
-#                print( k , v.data.shape )
-            print ( label_batch.shape )
-            print ( label_batch )
-            sys.exit()
-        print ( "iter = {}".format(iiter) )
-        d = output['detection_eval'][0][0]
-        for index in xrange(d.shape[0]):
+        _overlaps , num_pos = batch_gt_overlap( batch_label[0][0] ,
+                batch_det[0][0] , test_batch_size, _sizes[ size_count:size_count +
+                    test_batch_size ,: ]  )
 
-            dd = d[index]
-            if ( int(dd[0]) == -1 ):
-                num_gt_cls[ int(dd[1]) -1 ] += int(dd[2])
-                continue
+        gt_overlaps = np.hstack( (gt_overlaps , _overlaps ) )
+        total_num += num_pos
 
-            cls = int(dd[1]) - 1
-            conf = dd[2]
-            tp = int(dd[3])
-            fp = int(dd[4])
+        size_count += test_batch_size
+        print ( "iter = %d"%(iiter) )
 
-            num_tp_det_cls[cls].append([conf , tp ])
-            num_fp_det_cls[cls].append([conf , fp ])
+    gt_overlaps = np.sort( gt_overlaps )
+    step = 0.05
+    thresholds = np.arange( 0.5 , 0.95 + 1e-5 , step )
+    recalls = np.zeros_like( thresholds )
 
-    ap = np.zeros( num_classes - 1 )
-    mAP = 0.
+    for i , t in enumerate( thresholds ):
+        recalls[i] = ( gt_overlaps >= t ).sum() / float( total_num )
 
-    for icls in xrange( len(num_tp_det_cls) ):
-        num_tp_det_cls[icls].sort( reverse = True , key = lambda x: x[0] )
-        num_fp_det_cls[icls].sort( reverse = True , key = lambda x: x[0] )
+    ar = recalls.mean()
 
-        num_pos = num_gt_cls[icls]
+    def recall_at(t):
+        ind = np.where(thresholds > t-1e-5)[0][0]
+        return recalls[ind]
 
-        tmp1 = np.array( num_tp_det_cls[icls] )
-        tmp2 = np.array( num_fp_det_cls[icls] )
+    print( " ar = %f"%(ar))
+    print( "Recall@0.5:{:.3f}".format(recall_at(0.5)))
+    print( "Recall@0.6:{:.3f}".format(recall_at(0.6)))
+    print( "Recall@0.7:{:.3f}".format(recall_at(0.7)))
+    print( "Recall@0.8:{:.3f}".format(recall_at(0.8)))
+    print( "Recall@0.9:{:.3f}".format(recall_at(0.9)))
 
-        numpy_tp = np.array( tmp1[:,1] )
-        numpy_fp = np.array( tmp2[:,1] )
+    print ( "total num is %d"%(total_num) )
 
-        numpy_tp = np.cumsum( numpy_tp )
-        numpy_fp = np.cumsum( numpy_fp )
-
-        rec = numpy_tp / float( num_pos )
-        prec = numpy_tp / np.maximum(numpy_tp + numpy_fp, np.finfo(np.float64).eps)
-
-        ap[icls] = voc_ap( rec , prec , use_07_metric = True )
-
-        print ( "icls = {} , ap = {}".format( icls , ap[icls]) )
-
-    mAP = np.mean(ap)
-    print( "mAP = {}".format(mAP) )
