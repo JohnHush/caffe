@@ -7,8 +7,8 @@ import sys
 import numpy as np
 
 caffe_root = os.environ['CAFFE_ROOT']
-caffe.set_mode_gpu()
-caffe.set_device(3)
+caffe.set_mode_cpu()
+#caffe.set_device(3)
 
 def cifar10_AlexNet( imdb , batch_size , mean_file , train = True ):
     """
@@ -152,14 +152,14 @@ if __name__ == '__main__':
     test_net  = 'cifar_test_using_python_script.prototxt'
 
     with open( train_net , 'w' ) as f:
-        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_train_lmdb'), 100 , \
+        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_train_lmdb'), 200 , \
                 os.path.join( caffe_root , 'examples/cifar10/mean.binaryproto' ) ) ) )
 
     with open( test_net , 'w' ) as f:
         f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_test_lmdb'), 100 , \
                 os.path.join( caffe_root , 'examples/cifar10/mean.binaryproto' ) , train = False ) ) )
 
-    niter = 200  # number of iterations to train
+    niter = 1000  # number of iterations to train
 
     #cifar10_solver_filename = cifar10_Solver( train_net , test_net , base_lr=0.001 , max_iter = 4000 , solver_type = 'SGD' )
     cifar10_solver_filename = cifar10_Solver( train_net , test_net , base_lr=0.001 , max_iter = 4000 , solver_type = 'SGD' )
@@ -170,19 +170,21 @@ if __name__ == '__main__':
 #    solvers = [ ('scratch', cifar10_solver ) ,]
 #    loss, acc, weights = run_solvers(niter, solvers)
 #    print 'Done.'
-   
-    niter = 4000
 
     blobs = ( 'loss' , 'accuracy' )
     loss , acc = np.zeros(niter) , np.zeros(niter)
+    loss2 , acc2 = np.zeros(niter) , np.zeros(niter)
 
     for it in xrange( niter ):
         cifar10_solver.step(1)
         loss[it] , acc[it] = ( cifar10_solver.net.blobs[b].data.copy() for b in blobs )
+        loss2[it] , acc2[it] = ( cifar10_solver.test_nets[0].blobs[b].data.copy() for b in blobs )
 
-        if it % 100 == 0 or it +1 == niter:
+        if it % 10 == 0 or it +1 == niter:
             loss_disp = 'ToDieByYourSideIsSuchHeavenlyWayToDie%s: loss=%.3f, acc=%2d%%' % ( 'cifar10_AlexNet' , loss[it] , np.round(100*acc[it]) )
+            loss_disp2= 'ImagingAllThePeopleLivingForToday%s: loss2=%.3f, acc2=%2d%%' % ( 'cifar10_AlexNet' , loss2[it] , np.round(100*acc2[it]) )
             print '%3d) %s' % (it, loss_disp)
+            print '%3d) %s' % (it, loss_disp2)
 
 #    train_loss, scratch_train_loss = loss['pretrained'], loss['scratch']
 #    train_acc, scratch_train_acc = acc['pretrained'], acc['scratch']
