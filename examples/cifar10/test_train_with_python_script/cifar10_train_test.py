@@ -7,8 +7,8 @@ import sys
 import numpy as np
 
 caffe_root = os.environ['CAFFE_ROOT']
-caffe.set_mode_cpu()
-#caffe.set_device(3)
+caffe.set_mode_gpu()
+caffe.set_device(1)
 
 def cifar10_AlexNet( imdb , batch_size , mean_file , train = True ):
     """
@@ -152,18 +152,17 @@ if __name__ == '__main__':
     test_net  = 'cifar_test_using_python_script.prototxt'
 
     with open( train_net , 'w' ) as f:
-        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_train_lmdb'), 200 , \
+        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_train_lmdb'), 512 , \
                 os.path.join( caffe_root , 'examples/cifar10/mean.binaryproto' ) ) ) )
 
     with open( test_net , 'w' ) as f:
-        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_test_lmdb'), 100 , \
+        f.write( str( cifar10_AlexNet( os.path.join( caffe_root , 'examples/cifar10/cifar10_test_lmdb'), 512 , \
                 os.path.join( caffe_root , 'examples/cifar10/mean.binaryproto' ) , train = False ) ) )
-
-    niter = 1000  # number of iterations to train
 
     #cifar10_solver_filename = cifar10_Solver( train_net , test_net , base_lr=0.001 , max_iter = 4000 , solver_type = 'SGD' )
     cifar10_solver_filename = cifar10_Solver( train_net , test_net , base_lr=0.001 , max_iter = 4000 , solver_type = 'SGD' )
 
+    niter = 4000
     cifar10_solver = caffe.get_solver( cifar10_solver_filename )
 
     print 'Running solvers for %d iterations...' % niter
