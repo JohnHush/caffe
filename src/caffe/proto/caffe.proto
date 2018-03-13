@@ -553,6 +553,7 @@ message LayerParameter {
   optional WindowDataParameter window_data_param = 129;
 
 	optional LSigmoidParameter lsigmoid_param = 209;
+  optional NormalizeHappyNearParameter normalize_happynear_param = 210;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1350,6 +1351,12 @@ message NormalizeParameter {
   optional bool channel_shared = 3 [default = true];
   // Epsilon for not dividing by zero while normalizing variance
   optional float eps = 4 [default = 1e-10];
+}
+
+message NormalizeHappyNearParameter {
+  optional string normalize_type = 1 [default = "L2"];
+  optional bool fix_gradient = 2 [default = false];
+  optional bool bp_norm = 3 [default = false];
 }
 
 message ParameterParameter {
