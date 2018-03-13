@@ -24,3 +24,4 @@ snapshot_format: HDF5
 snapshot_prefix: "examples/cifar10/cifar10_quick"
 # solver mode: CPU or GPU
 solver_mode: GPU
+random_seed: 0xCAFFE

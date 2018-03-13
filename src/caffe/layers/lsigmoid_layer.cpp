@@ -48,6 +48,10 @@ void LSigmoidLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   // Propagate gradients to the parameters (as directed by backward pass).
   this->param_propagate_down_.resize(this->blobs_.size(), true);
+
+  multiplier_.Reshape(vector<int>(1, bottom[0]->count(1)));
+  backward_buff_.Reshape(vector<int>(1, bottom[0]->count(1)));
+  caffe_set(multiplier_.count(), Dtype(1), multiplier_.mutable_cpu_data());
 }
 
 template <typename Dtype>
@@ -113,7 +117,7 @@ void LSigmoidLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
 
 #ifdef CPU_ONLY
-//STUB_GPU( LSigmoidLayer );
+STUB_GPU( LSigmoidLayer );
 #endif
 
 INSTANTIATE_CLASS( LSigmoidLayer );

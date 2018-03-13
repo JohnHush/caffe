@@ -7,6 +7,7 @@ import bbox as bbb
 import matplotlib.pyplot as plt
 
 import math, os, shutil, stat, sys
+import cPickle
 
 def decode_bbox( bbox , h , w ):
     """
@@ -243,6 +244,7 @@ if __name__ == "__main__":
     job_dir = os.path.join( caffe_root , "jobs/VGGNet/VOC0712/{}".format(job_name) )
     test_net_file = "{}/test.prototxt".format(save_dir)
     test_data = os.path.join( caffe_root, "examples/VOC0712/VOC0712_test_lmdb" )
+    recall_save_file = "{}/recall_different_keepTopK.pkl".format(job_dir)
     test_transform_param = {
         'mean_value': [104, 117, 123],
         'resize_param': {
@@ -357,10 +359,11 @@ if __name__ == "__main__":
     _sizes = _sizes.reshape(( _sizes.size/2 , 2 ))
 
     proposal_num_list = [ 10, 15 , 30 , 50 , 100, 200 , 300, 500 ]
+    evaluate_list = [ {} for _ in xrange( len(proposal_num_list) ) ]
 
     for_plt = [ [] for _ in xrange(len( proposal_num_list)) ]
     for ip , num_proposal in enumerate(proposal_num_list):
-        caffe.set_device(2)
+        caffe.set_device(1)
         caffe.set_mode_gpu()
         num_proposal = int( num_proposal )
 
@@ -404,6 +407,12 @@ if __name__ == "__main__":
 
         ar = recalls.mean()
 
+        # record the solution in the evaluate list and then save it
+        evaluate_list[ip]['ar'] = ar
+        evaluate_list[ip]['recalls'] = recalls
+        evaluate_list[ip]['thresholds'] = thresholds
+        evaluate_list[ip]['gt_overlaps'] = gt_overlaps
+
         def recall_at(t):
             ind = np.where(thresholds > t-1e-5)[0][0]
             return recalls[ind]
@@ -419,6 +428,11 @@ if __name__ == "__main__":
         print( "Recall@0.8:{:.3f}".format(recall_at(0.8)))
         print( "Recall@0.9:{:.3f}".format(recall_at(0.9)))
         print( "total num of pos in fixed size is %d"%(total_num))
+
+
+    # save the recall evaluation file 
+    with open( recall_save_file , 'wb' ) as f:
+        cPickle.dump( evaluate_list, f, cPickle.HIGHEST_PROTOCOL)
 
     for_plt = np.array(for_plt)
 

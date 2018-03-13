@@ -182,171 +182,30 @@ def voc_ap(rec, prec, use_07_metric=False):
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
 
-# add additional layers to the base net
-def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
-    use_relu = True
-
-    # 19 x 19
-    from_layer = net.keys()[-1]
-
-    out_layer = "conv6_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1,
-        lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2,
-        lr_mult=lr_mult)
-
-    # 5 x 5
-    from_layer = out_layer
-    out_layer = "conv7_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv7_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2,
-      lr_mult=lr_mult)
-
-    # 3 x 3
-    from_layer = out_layer
-    out_layer = "conv8_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv8_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
-
-    # 1 x 1
-    from_layer = out_layer
-    out_layer = "conv9_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv9_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
-
-    return net
-
-
 if __name__ == "__main__":
 
     caffe_root = os.environ['CAFFE_ROOT']
-    job_name = "jh_ssd_test"
+    job_name = "jh_ssd512_test_recall_diff_gt_size"
     model_name = "VGG_VOC0712_{}".format(job_name)
-    weights = os.path.join( caffe_root , "models/VGGNet/VOC0712/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel" )
-    save_dir = os.path.join( caffe_root , "models/VGGNet/VOC0712/{}".format(job_name) )
-    job_dir = os.path.join( caffe_root , "jobs/VGGNet/VOC0712/{}".format(job_name) )
-    test_net_file = "{}/test.prototxt".format(save_dir)
-    test_data = os.path.join( caffe_root, "examples/VOC0712/VOC0712_test_lmdb" )
-    recall_save_file = "{}/recall_different_gt_size.pkl".format(job_dir)
-    test_transform_param = {
-        'mean_value': [104, 117, 123],
-        'resize_param': {
-                'prob': 1,
-                'resize_mode': P.Resize.WARP,
-                'height': 300,
-                'width': 300,
-                'interp_mode': [P.Resize.LINEAR],
-                },
-        }
-    label_map_file = os.path.join( caffe_root, "data/VOC0712/labelmap_voc.prototxt" )
+    weights = os.path.join( caffe_root , "models/VGGNet/VOC0712Plus/SSD_512x512_ft/VGG_VOC0712_SSD_512x512_ft_iter_120000.caffemodel" )
+    save_dir = os.path.join( caffe_root , "models/VGGNet/VOC0712Plus/{}".format(job_name) )
+    job_dir = os.path.join( caffe_root , "jobs/VGGNet/VOC0712Plus/{}".format(job_name) )
+    test_net_file = '/home/jh/working_lib/caffe/models/VGGNet/VOC0712Plus/SSD_512x512_ft/test.prototxt'
+
+    recall_save_file = "{}/recall_different_gt_size_SSD512.pkl".format(job_dir)
+
     name_size_file = os.path.join( caffe_root, "data/VOC0712/test_name_size.txt" )
     test_batch_size = 8
     num_test_image = 4952
-    use_batchnorm = False
-    lr_mult = 1
-    mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
-    code_type = P.PriorBox.CENTER_SIZE
-    background_label_id=0
     num_classes = 21
-    min_dim = 300
-    min_ratio = 20
-    max_ratio = 90
-    step = int(math.floor((max_ratio - min_ratio) / (len(mbox_source_layers) - 2)))
-    min_sizes = []
-    max_sizes = []
-    for ratio in xrange(min_ratio, max_ratio + 1, step):
-        min_sizes.append(min_dim * ratio / 100.)
-        max_sizes.append(min_dim * (ratio + step) / 100.)
 
-    min_sizes = [min_dim * 10 / 100.] + min_sizes
-    max_sizes = [min_dim * 20 / 100.] + max_sizes
-    steps = [8, 16, 32, 64, 100, 300]
-    aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
-    normalizations = [20, -1, -1, -1, -1, -1]
-    prior_variance = [0.1, 0.1, 0.2, 0.2]
-    flip = True
-    clip = False
-    share_location = True
-
-    det_out_param = {
-    'num_classes': num_classes,
-    'share_location': share_location,
-    'background_label_id': background_label_id,
-    'nms_param': {'nms_threshold': 0.45, 'top_k': 200},
-    'keep_top_k': 200,
-    'confidence_threshold': 0.001,
-    'code_type': code_type,
-    }
-
-    det_eval_param = {
-    'num_classes': num_classes,
-    'background_label_id': background_label_id,
-    'overlap_threshold': 0.5,
-    'evaluate_difficult_gt': False,
-    'name_size_file': name_size_file,
-    }
-
-    check_if_exist(test_data)
-    check_if_exist(label_map_file)
     check_if_exist(weights)
     make_if_not_exist(save_dir)
     make_if_not_exist(job_dir)
 
-    netProto = caffe.NetSpec()
-    netProto.data, netProto.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_size,
-        train=False, output_label=True, label_map_file=label_map_file,
-        transform_param=test_transform_param)
-
-    VGGNetBody(netProto, from_layer='data', fully_conv=True, reduced=True, dilated=True, dropout=False)
-    AddExtraLayers(netProto, use_batchnorm, lr_mult=lr_mult)
-
-    mbox_layers = CreateMultiBoxHead(netProto, data_layer='data', from_layers=mbox_source_layers,
-                use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
-                aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
-                num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-                prior_variance=prior_variance, kernel_size=3, pad=1, lr_mult=lr_mult)
-
-    conf_name = "mbox_conf"
-    reshape_name = "{}_reshape".format(conf_name)
-    netProto[reshape_name] = L.Reshape(netProto[conf_name], shape=dict(dim=[0, -1, num_classes]))
-    softmax_name = "{}_softmax".format(conf_name)
-    netProto[softmax_name] = L.Softmax(netProto[reshape_name], axis=2)
-    flatten_name = "{}_flatten".format(conf_name)
-    netProto[flatten_name] = L.Flatten(netProto[softmax_name], axis=1)
-    mbox_layers[1] = netProto[flatten_name]
-
-    netProto.detection_out = L.DetectionOutput(*mbox_layers,
-        detection_output_param=det_out_param,
-        include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-    netProto.detection_eval = L.DetectionEvaluate(netProto.detection_out, netProto.label,
-        detection_evaluate_param=det_eval_param,
-        include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-
-    with open(test_net_file, 'w') as f:
-        print('name: "{}_test"'.format(model_name), file=f)
-        print(netProto.to_proto(), file=f)
-    shutil.copy(test_net_file, job_dir)
-
     test_iter = num_test_image / test_batch_size
 
-    caffe.set_device(1)
+    caffe.set_device(0)
     caffe.set_mode_gpu()
 
     net = caffe.Net( test_net_file , weights , caffe.TEST )

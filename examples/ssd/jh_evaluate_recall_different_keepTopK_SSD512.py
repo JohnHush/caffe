@@ -1,6 +1,7 @@
 from __future__ import print_function
 import caffe
 from caffe.model_libs import *
+from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 import numpy as np
 import bbox as bbb
@@ -182,174 +183,29 @@ def voc_ap(rec, prec, use_07_metric=False):
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
 
-# add additional layers to the base net
-def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
-    use_relu = True
-
-    # 19 x 19
-    from_layer = net.keys()[-1]
-
-    out_layer = "conv6_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1,
-        lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2,
-        lr_mult=lr_mult)
-
-    # 5 x 5
-    from_layer = out_layer
-    out_layer = "conv7_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv7_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2,
-      lr_mult=lr_mult)
-
-    # 3 x 3
-    from_layer = out_layer
-    out_layer = "conv8_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv8_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
-
-    # 1 x 1
-    from_layer = out_layer
-    out_layer = "conv9_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
-
-    from_layer = out_layer
-    out_layer = "conv9_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
-
-    return net
-
-
 if __name__ == "__main__":
 
     caffe_root = os.environ['CAFFE_ROOT']
-    job_name = "jh_ssd_test"
+    job_name = "jh_ssd512_test_recall_diff_proposal_number"
     model_name = "VGG_VOC0712_{}".format(job_name)
-    weights = os.path.join( caffe_root , "models/VGGNet/VOC0712/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel" )
-    save_dir = os.path.join( caffe_root , "models/VGGNet/VOC0712/{}".format(job_name) )
-    job_dir = os.path.join( caffe_root , "jobs/VGGNet/VOC0712/{}".format(job_name) )
-    test_net_file = "{}/test.prototxt".format(save_dir)
-    test_data = os.path.join( caffe_root, "examples/VOC0712/VOC0712_test_lmdb" )
-    recall_save_file = "{}/recall_different_gt_size.pkl".format(job_dir)
-    test_transform_param = {
-        'mean_value': [104, 117, 123],
-        'resize_param': {
-                'prob': 1,
-                'resize_mode': P.Resize.WARP,
-                'height': 300,
-                'width': 300,
-                'interp_mode': [P.Resize.LINEAR],
-                },
-        }
-    label_map_file = os.path.join( caffe_root, "data/VOC0712/labelmap_voc.prototxt" )
+    weights = os.path.join( caffe_root , "models/VGGNet/VOC0712Plus/SSD_512x512_ft/VGG_VOC0712_SSD_512x512_ft_iter_120000.caffemodel" )
+    save_dir = os.path.join( caffe_root , "models/VGGNet/VOC0712Plus/{}".format(job_name) )
+    job_dir = os.path.join( caffe_root , "jobs/VGGNet/VOC0712Plus/{}".format(job_name) )
+    test_net_file = '/home/jh/working_lib/caffe/models/VGGNet/VOC0712Plus/SSD_512x512_ft/test.prototxt'
+    gene_test_net_file = os.path.join( job_dir , 'gene_test.prototxt' )
+
+    recall_save_file = "{}/recall_different_proposal_number_SSD512.pkl".format(job_dir)
+
     name_size_file = os.path.join( caffe_root, "data/VOC0712/test_name_size.txt" )
     test_batch_size = 8
     num_test_image = 4952
-    use_batchnorm = False
-    lr_mult = 1
-    mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
-    code_type = P.PriorBox.CENTER_SIZE
-    background_label_id=0
     num_classes = 21
-    min_dim = 300
-    min_ratio = 20
-    max_ratio = 90
-    step = int(math.floor((max_ratio - min_ratio) / (len(mbox_source_layers) - 2)))
-    min_sizes = []
-    max_sizes = []
-    for ratio in xrange(min_ratio, max_ratio + 1, step):
-        min_sizes.append(min_dim * ratio / 100.)
-        max_sizes.append(min_dim * (ratio + step) / 100.)
 
-    min_sizes = [min_dim * 10 / 100.] + min_sizes
-    max_sizes = [min_dim * 20 / 100.] + max_sizes
-    steps = [8, 16, 32, 64, 100, 300]
-    aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
-    normalizations = [20, -1, -1, -1, -1, -1]
-    prior_variance = [0.1, 0.1, 0.2, 0.2]
-    flip = True
-    clip = False
-    share_location = True
-
-    det_out_param = {
-    'num_classes': num_classes,
-    'share_location': share_location,
-    'background_label_id': background_label_id,
-    'nms_param': {'nms_threshold': 0.45, 'top_k': 200},
-    'keep_top_k': 200,
-    'confidence_threshold': 0.001,
-    'code_type': code_type,
-    }
-
-    det_eval_param = {
-    'num_classes': num_classes,
-    'background_label_id': background_label_id,
-    'overlap_threshold': 0.5,
-    'evaluate_difficult_gt': False,
-    'name_size_file': name_size_file,
-    }
-
-    check_if_exist(test_data)
-    check_if_exist(label_map_file)
     check_if_exist(weights)
     make_if_not_exist(save_dir)
     make_if_not_exist(job_dir)
 
-    netProto = caffe.NetSpec()
-    netProto.data, netProto.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_size,
-        train=False, output_label=True, label_map_file=label_map_file,
-        transform_param=test_transform_param)
-
-    VGGNetBody(netProto, from_layer='data', fully_conv=True, reduced=True, dilated=True, dropout=False)
-    AddExtraLayers(netProto, use_batchnorm, lr_mult=lr_mult)
-
-    mbox_layers = CreateMultiBoxHead(netProto, data_layer='data', from_layers=mbox_source_layers,
-                use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
-                aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
-                num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-                prior_variance=prior_variance, kernel_size=3, pad=1, lr_mult=lr_mult)
-
-    conf_name = "mbox_conf"
-    reshape_name = "{}_reshape".format(conf_name)
-    netProto[reshape_name] = L.Reshape(netProto[conf_name], shape=dict(dim=[0, -1, num_classes]))
-    softmax_name = "{}_softmax".format(conf_name)
-    netProto[softmax_name] = L.Softmax(netProto[reshape_name], axis=2)
-    flatten_name = "{}_flatten".format(conf_name)
-    netProto[flatten_name] = L.Flatten(netProto[softmax_name], axis=1)
-    mbox_layers[1] = netProto[flatten_name]
-
-    netProto.detection_out = L.DetectionOutput(*mbox_layers,
-        detection_output_param=det_out_param,
-        include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-    netProto.detection_eval = L.DetectionEvaluate(netProto.detection_out, netProto.label,
-        detection_evaluate_param=det_eval_param,
-        include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-
-    with open(test_net_file, 'w') as f:
-        print('name: "{}_test"'.format(model_name), file=f)
-        print(netProto.to_proto(), file=f)
-    shutil.copy(test_net_file, job_dir)
-
     test_iter = num_test_image / test_batch_size
-
-    caffe.set_device(1)
-    caffe.set_mode_gpu()
-
-    net = caffe.Net( test_net_file , weights , caffe.TEST )
 
     # read name size file
     f = open( name_size_file , "r" )
@@ -363,13 +219,34 @@ if __name__ == "__main__":
         #print ( "height = %d , width = %d"%( int(line_list[1]) , int(line_list[2]) ))
     _sizes = _sizes.reshape(( _sizes.size/2 , 2 ))
 
-    area_ranges = [ [96,3773], [3773,11368], [11368,28302], [28302,64630],[64630,249001]]
-    #area_ranges = [ [96,3773], [3773,11368] ]
-    evaluate_list = [ {} for _ in xrange(len( area_ranges )) ]
+    proposal_num_list = [ 10, 15 , 30 , 50 , 100, 200 , 300, 500 ]
+    evaluate_list = [ {} for _ in xrange( len(proposal_num_list) ) ]
 
-    for_plt = [ [] for _ in xrange(len( area_ranges )) ]
+    for_plt = [ [] for _ in xrange(len( proposal_num_list)) ]
+    for ip , num_proposal in enumerate(proposal_num_list):
+        caffe.set_device(3)
+        caffe.set_mode_gpu()
+        num_proposal = int( num_proposal )
 
-    for irange , area_range in enumerate( area_ranges ):
+        # read prototxt from the test_net_file
+        # then modify it and then save it
+        # then read it using caffe.Net function to build the net
+
+        netP = caffe_pb2.NetParameter()
+
+        with open( test_net_file , 'r' ) as f:
+            s = f.read()
+        text_format.Merge( s, netP )
+        layerNames = [ l.name for l in netP.layer ]
+        idx = layerNames.index('detection_out')
+        l = netP.layer[idx]
+        l.detection_output_param.keep_top_k = num_proposal
+
+        with open(gene_test_net_file, 'w') as f:
+            f.write( str(netP) )
+        #shutil.copy(gene_test_net_file, job_dir)
+
+        net = caffe.Net( gene_test_net_file , weights , caffe.TEST )
 
         total_num = 0
         size_count = 0
@@ -382,14 +259,14 @@ if __name__ == "__main__":
 
             _overlaps , num_pos = batch_gt_overlap( batch_label[0][0] ,
                     batch_det[0][0] , test_batch_size, _sizes[ size_count:size_count +
-                        test_batch_size ,: ]  , low_area = area_range[0] , high_area=area_range[1] )
+                        test_batch_size ,: ]  , area = 'all')
 
             gt_overlaps = np.hstack( (gt_overlaps , _overlaps ) )
             total_num += num_pos
 
             size_count += test_batch_size
             if iiter % 20 == 0:
-               print ( "iter = %d , irange# = %d"%(iiter, irange) )
+               print ( "iter = %d , proposal# = %d"%(iiter, num_proposal) )
 
         gt_overlaps = np.sort( gt_overlaps )
         step = 0.05
@@ -400,17 +277,20 @@ if __name__ == "__main__":
             recalls[i] = ( gt_overlaps >= t ).sum() / float( total_num )
 
         ar = recalls.mean()
-        evaluate_list[irange]['ar'] = ar
-        evaluate_list[irange]['recalls'] = recalls
-        evaluate_list[irange]['thresholds'] = thresholds
-        evaluate_list[irange]['gt_overlaps'] = gt_overlaps
+
+        # record the solution in the evaluate list and then save it
+        evaluate_list[ip]['ar'] = ar
+        evaluate_list[ip]['recalls'] = recalls
+        evaluate_list[ip]['thresholds'] = thresholds
+        evaluate_list[ip]['gt_overlaps'] = gt_overlaps
 
         def recall_at(t):
             ind = np.where(thresholds > t-1e-5)[0][0]
             return recalls[ind]
 
-        for_plt[irange] = [ar , recall_at(0.5) , recall_at(0.6), recall_at(0.7), \
+        for_plt[ip] = [ar , recall_at(0.5) , recall_at(0.6), recall_at(0.7), \
                 recall_at(0.8) ,recall_at(0.9) ]
+        del(net)
 
         print( " ar = %f"%(ar))
         print( "Recall@0.5:{:.3f}".format(recall_at(0.5)))
@@ -420,23 +300,14 @@ if __name__ == "__main__":
         print( "Recall@0.9:{:.3f}".format(recall_at(0.9)))
         print( "total num of pos in fixed size is %d"%(total_num))
 
-    # save the recall evaluation file
+
+    # save the recall evaluation file 
     with open( recall_save_file , 'wb' ) as f:
         cPickle.dump( evaluate_list, f, cPickle.HIGHEST_PROTOCOL)
 
     for_plt = np.array(for_plt)
 
-    xticks_label = [ [] for _ in xrange(len( area_ranges )) ]
-
-    for irange, area_range in enumerate( area_ranges ):
-        x_start = int (np.sqrt( area_range[0] ) )
-        x_end   = int (np.sqrt( area_range[1] ) )
-
-        xs_str = str( x_start )
-        xe_str = str( x_end )
-
-        xticks_label[irange] = xs_str + '*' + xs_str + ' - ' + xe_str + '*' + xe_str
-
+    #proposal_num_list = [ 10, 15 , 30 , 50 , 100 , 200 , 300, 500 ]
     #ar
     v1 = for_plt[:,0]
     #recall at 0.5
@@ -451,18 +322,14 @@ if __name__ == "__main__":
     v6 = for_plt[:,5]
 
     plt.figure(1)
-    
-    area_len = len( area_ranges )
-
-    line1, = plt.plot( np.arange( area_len) , v1 , 'ko-', markerfacecolor='black', markersize=12)
-    line2, = plt.plot( np.arange( area_len) , v2 , 'ko-', markerfacecolor='yellow', markersize=10)
-    line3, = plt.plot( np.arange( area_len) , v3 , 'ko-', markerfacecolor='red',markersize=10)
-    line4, = plt.plot( np.arange( area_len) , v4 , 'ko-', markerfacecolor='green',markersize=10)
-    line5, = plt.plot( np.arange( area_len) , v5 , 'ko-', markerfacecolor='blue',markersize=10)
-    line6, = plt.plot( np.arange( area_len) , v6 , 'ko-', markerfacecolor='magenta',markersize=10)
-    plt.xlabel('size of proposals')
+    line1, = plt.plot( proposal_num_list , v1 , 'ko-', markerfacecolor='black', markersize=12)
+    line2, = plt.plot( proposal_num_list , v2 , 'ko-', markerfacecolor='yellow', markersize=10)
+    line3, = plt.plot( proposal_num_list , v3 , 'ko-', markerfacecolor='red',markersize=10)
+    line4, = plt.plot( proposal_num_list , v4 , 'ko-', markerfacecolor='green',markersize=10)
+    line5, = plt.plot( proposal_num_list , v5 , 'ko-', markerfacecolor='blue',markersize=10)
+    line6, = plt.plot( proposal_num_list , v6 , 'ko-', markerfacecolor='magenta',markersize=10)
+    plt.xlabel('# of proposals')
     plt.ylabel('Recall@overlap')
-    plt.xticks( np.arange(len( area_ranges )) , xticks_label )
     plt.figlegend( (line1,line2,line3,line4,line5,line6) , ('Average Recall', \
             'Recall@0.5', 'Recall@0.6', 'Recall@0.7','Recall@0.8','Recall@0.9') , 'upper right' )
     plt.show()
