@@ -554,6 +554,19 @@ message LayerParameter {
 
 	optional LSigmoidParameter lsigmoid_param = 209;
   optional NormalizeHappyNearParameter normalize_happynear_param = 210;
+	optional RPNParameter rpn_param = 8266713;
+}
+
+message RPNParameter {
+  optional uint32 feat_stride = 1;
+  optional uint32 basesize = 2;
+  repeated uint32 scale = 3;
+  repeated float ratio = 4;
+  optional uint32 boxminsize =5;
+  optional uint32 pre_nms_topn = 9;
+  optional uint32 post_nms_topn = 11;
+  optional float nms_thresh = 8;
+
 }
 
 // Message that stores parameters used to apply transformation
