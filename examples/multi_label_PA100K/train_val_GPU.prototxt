@@ -391,5 +391,7 @@ layer {
   bottom: "sigmoid_fc8_PA100K_26"
   bottom: "label"
   top: "accuracy_whole"
+  top: "accuracy_per_class"
+  top: "positive_ratio"
   include: { phase: TEST }
 }

@@ -125,8 +125,14 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Forward_cpu(
 //    if (has_ignore_label_ && target_value == ignore_label_) {
 //      continue;
 //    }
-    loss -= input_data[i] * (target[i] - (input_data[i] >= 0)) -
-        log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0)));
+//    loss -= input_data[i] * (target[i] - (input_data[i] >= 0)) -
+//        log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0)));
+    int att_index = i % attributes_number_;
+
+    if ( target_value == 1 )
+      loss -= attribute_weights_[att_index].first * log( sigmoid_output_->cpu_data()[i] );
+    if ( target_value == 0 )
+      loss -= attribute_weights_[att_index].second * log( 1. - sigmoid_output_->cpu_data()[i] );
     ++valid_count;
   }
   normalizer_ = get_normalizer(normalization_, valid_count);
@@ -148,17 +154,24 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
     const Dtype* target = bottom[1]->cpu_data();
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     caffe_sub(count, sigmoid_output_data, target, bottom_diff);
-    // Zero out gradient of ignored targets.
-		// we ignore this parameter temporally as it seems useless for us
-//    if (has_ignore_label_) {
-//      for (int i = 0; i < count; ++i) {
-//        const int target_value = static_cast<int>(target[i]);
-//        if (target_value == ignore_label_) {
-//          bottom_diff[i] = 0;
-//        }
-//      }
-//    }
-    // Scale down gradient
+
+    Dtype* diff_weight = new Dtype[count];
+
+    for ( int i = 0 ; i < count ; ++ i )
+    {
+      int att_index = i % attributes_number_;
+      
+      const int target_value = static_cast<int>(target[i]);
+
+      if ( target_value == 1 )
+        diff_weight[i] = attribute_weights_[att_index].first;
+      if ( target_value == 0 )
+        diff_weight[i] = attribute_weights_[att_index].second;
+    }
+
+    caffe_mul( count, bottom_diff , diff_weight , bottom_diff );
+    delete diff_weight;
+
     Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;
     caffe_scal(count, loss_weight, bottom_diff);
   }

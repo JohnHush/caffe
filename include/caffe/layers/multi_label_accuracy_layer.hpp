@@ -20,6 +20,8 @@ namespace caffe {
  * Modified by Luo Heng
  *
  * Data: Nov 12th, 2017 in Sichuan
+ *
+ * The definition of mA could refer the paper, Dangwei Li, 2016, A Richly Annotated Dataset for Pedestrian Attribute Recognition
  */
 template <typename Dtype>
 class MultiLabelAccuracyLayer : public Layer<Dtype> {
@@ -39,7 +41,7 @@ class MultiLabelAccuracyLayer : public Layer<Dtype> {
   // If there are two top blobs, then the second blob will contain
   // accuracies per class.
   virtual inline int MinTopBlobs() const { return 1; }
-  virtual inline int MaxTopBlobs() const { return 2; }
+  virtual inline int MaxTopBlobs() const { return 3; }
 
  protected:
   /**
@@ -74,6 +76,10 @@ class MultiLabelAccuracyLayer : public Layer<Dtype> {
 	int batch_number_;
 
 	Blob<Dtype> top1_holder_;
+  Blob<Dtype> positive_holder_;
+  Blob<Dtype> positive_counter_;
+  Blob<Dtype> negative_holder_;
+  Blob<Dtype> negative_counter_;
 };
 
 }  // namespace caffe
