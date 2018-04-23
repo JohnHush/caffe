@@ -1,0 +1,44 @@
+#ifndef CAFFE_MULTI_LABEL_DATA_LAYER_HPP_
+#define CAFFE_MULTI_LABEL_DATA_LAYER_HPP_
+
+#include <string>
+#include <vector>
+
+#include "caffe/blob.hpp"
+//#include "caffe/data_reader.hpp"
+#include "caffe/data_transformer.hpp"
+#include "caffe/internal_thread.hpp"
+#include "caffe/layer.hpp"
+#include "caffe/layers/base_data_layer.hpp"
+#include "caffe/proto/caffe.pb.h"
+#include "caffe/util/db.hpp"
+
+namespace caffe {
+
+template <typename Dtype>
+class MultiLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
+ public:
+  explicit MultiLabelDataLayer(const LayerParameter& param);
+  virtual ~MultiLabelDataLayer();
+  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual inline const char* type() const { return "MultiLabelData"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int MinTopBlobs() const { return 1; }
+
+ protected:
+  // follow the implementation in DataLayer class,,,
+  // this version implementation has abondoned the DataReader 
+  void Next();
+  bool Skip();
+  virtual void load_batch(Batch<Dtype>* batch);
+
+  shared_ptr<db::DB> db_;
+  shared_ptr<db::Cursor> cursor_;
+  uint64_t offset_;
+
+};
+
+}  // namespace caffe
+
+#endif

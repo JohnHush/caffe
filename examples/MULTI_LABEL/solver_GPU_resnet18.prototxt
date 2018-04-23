@@ -1,0 +1,15 @@
+net: "./train_val_GPU_resnet18.prototxt"
+test_iter: 1000
+test_interval: 1000
+base_lr: 0.001
+display: 100
+lr_policy: "poly"
+max_iter: 650000
+power: 1
+momentum: 0.9
+weight_decay: 0.0005
+snapshot: 10000
+snapshot_prefix: "PA100K_26_resnet-18"
+random_seed: 0
+test_initialization: false
+solver_mode: GPU
