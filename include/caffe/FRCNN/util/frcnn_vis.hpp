@@ -25,6 +25,20 @@ inline std::map<int,string> LoadVocClass(){
   return answer;
 }
 
+inline std::map<int,string> LoadPA100Class(){
+  std::string CLASSES[] = {"Female","AgeOver60", "Age18-60",
+           "AgeLess18", "Front", "Side", "Back","Hot","Glasses",
+           "HandBag", "ShoulderBag", "Backpack", "HoldObjectsInFront",
+           "ShortSleeve", "LongSleeve", "UpperStride", "UpperLogo",
+           "UpperPlaid","UpperSplice", "LowerStripe", "LowerPattern","LongCoat",
+           "Trousers", "Shorts", "Skirt&Dress", "boots"};
+  std::map<int,string> answer;
+  for (int index = 0 ; index < 26; index++) {
+    answer[index] = CLASSES[index]; 
+  }
+  return answer;
+}
+
 inline std::string GetClassName(const std::map<int,std::string> CLASS, int label) {
   if( CLASS.find(label) == CLASS.end() ){
     std::ostringstream text;
