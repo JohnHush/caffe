@@ -179,8 +179,13 @@ bool VideoDataLayer<Dtype>::ReadSegmentRGBToDatum(const string& filename, const 
     cv::Mat cv_img;
     string* datum_string;
     char tmp[30];
+#if CV_MAJOR_VERSION == 2
     int cv_read_flag = (is_color ? CV_LOAD_IMAGE_COLOR :
         CV_LOAD_IMAGE_GRAYSCALE);
+#elif ( CV_MAJOR_VERSION == 3 || CV_MAJOR_VERSION == 4 )
+    int cv_read_flag = (is_color ? cv::IMREAD_COLOR :
+        cv::IMREAD_GRAYSCALE );
+#endif
     for (int i = 0; i < offsets.size(); ++i){
         int offset = offsets[i];
         for (int file_id = 1; file_id < length+1; ++file_id){
@@ -234,16 +239,21 @@ bool VideoDataLayer<Dtype>::ReadSegmentFlowToDatum(const string& filename, const
     const vector<int> offsets, const int height, const int width, const int length, Datum* datum){
     cv::Mat cv_img_x, cv_img_y;
     string* datum_string;
+#if CV_MAJOR_VERSION == 2
+    int cv_read_flag = CV_LOAD_IMAGE_GRAYSCALE;
+#elif ( CV_MAJOR_VERSION == 3 || CV_MAJOR_VERSION == 4 )
+    int cv_read_flag = cv::IMREAD_GRAYSCALE;
+#endif
     char tmp[30];
     for (int i = 0; i < offsets.size(); ++i){
         int offset = offsets[i];
         for (int file_id = 1; file_id < length+1; ++file_id){
             sprintf(tmp,"flow_x_%08d.jpg",int(file_id+offset));
             string filename_x = filename + "/" + tmp;
-            cv::Mat cv_img_origin_x = cv::imread(filename_x, CV_LOAD_IMAGE_GRAYSCALE);
+            cv::Mat cv_img_origin_x = cv::imread(filename_x, cv_read_flag );
             sprintf(tmp,"flow_y_%08d.jpg",int(file_id+offset));
             string filename_y = filename + "/" + tmp;
-            cv::Mat cv_img_origin_y = cv::imread(filename_y, CV_LOAD_IMAGE_GRAYSCALE);
+            cv::Mat cv_img_origin_y = cv::imread(filename_y, cv_read_flag );
             if (!cv_img_origin_x.data || !cv_img_origin_y.data){
                 LOG(ERROR) << "Could not load file " << filename_x << " or " << filename_y;
                 return false;
