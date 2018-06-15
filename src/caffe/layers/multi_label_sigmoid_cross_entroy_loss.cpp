@@ -130,9 +130,9 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Forward_cpu(
     int att_index = i % attributes_number_;
 
     if ( target_value == 1 )
-      loss -= attribute_weights_[att_index].first * log( sigmoid_output_->cpu_data()[i] );
+      loss -= attribute_weights_[att_index].first * log( sigmoid_output_->cpu_data()[i] + 1E-7);
     if ( target_value == 0 )
-      loss -= attribute_weights_[att_index].second * log( 1. - sigmoid_output_->cpu_data()[i] );
+      loss -= attribute_weights_[att_index].second * log( 1. - sigmoid_output_->cpu_data()[i] + 1E-7 );
     ++valid_count;
   }
   normalizer_ = get_normalizer(normalization_, valid_count);

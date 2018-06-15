@@ -375,6 +375,36 @@ layer {
   bottom: "fc8_PA100K_26"
   bottom: "label"
 	top: "Multi Label Loss"
+
+  multi_label_sigmoid_cross_entropy_loss{
+    epsilon : 1
+    positive_ratio : 0.49
+    positive_ratio : 0.0084
+    positive_ratio : 0.84
+    positive_ratio : 0.14332
+    positive_ratio : 0.3020
+    positive_ratio : 0.3807
+    positive_ratio : 0.3172
+    positive_ratio : 0.0404
+    positive_ratio : 0.1868
+    positive_ratio : 0.1974
+    positive_ratio : 0.2043
+    positive_ratio : 0.2588
+    positive_ratio : 0.0083
+    positive_ratio : 0.561
+    positive_ratio : 0.4387
+    positive_ratio : 0.038
+    positive_ratio : 0.1267
+    positive_ratio : 0.100
+    positive_ratio : 0.0254
+    positive_ratio : 0.00199
+    positive_ratio : 0.0097
+    positive_ratio : 0.067
+    positive_ratio : 0.734
+    positive_ratio : 0.169
+    positive_ratio : 0.096
+    positive_ratio : 0.00457
+ }
 }
 
 layer {
@@ -392,6 +422,5 @@ layer {
   bottom: "label"
   top: "accuracy_whole"
   top: "accuracy_per_class"
-  top: "positive_ratio"
   include: { phase: TEST }
 }

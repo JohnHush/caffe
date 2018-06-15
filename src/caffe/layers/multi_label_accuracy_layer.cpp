@@ -53,11 +53,6 @@ void MultiLabelAccuracyLayer<Dtype>::Reshape(
     top_shape_per_class[0] = attributes_number_;
     top[1]->Reshape(top_shape_per_class);
     nums_buffer_.Reshape(top_shape_per_class);
-
-
-
-
-    top[2]->Reshape( top_shape_per_class );
   }
 }
 
@@ -80,15 +75,8 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 	caffe_set( positive_counter_.count() , Dtype(0) , positive_counter_.mutable_cpu_data() );
 	caffe_set( negative_counter_.count() , Dtype(0) , negative_counter_.mutable_cpu_data() );
 
-  if (top.size() > 1) {
-//    caffe_set(nums_buffer_.count(), Dtype(0), nums_buffer_.mutable_cpu_data());
+  if (top.size() > 1)
     caffe_set(top[1]->count(), Dtype(0), top[1]->mutable_cpu_data());
-
-
-
-
-    caffe_set(top[2]->count(), Dtype(0), top[2]->mutable_cpu_data());
-  }
 //  int count = 0;
   for (int i = 0; i < batch_number_ ; ++i)
   for (int j = 0; j < attributes_number_ ; ++j)
@@ -107,9 +95,6 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
     {
       ++ negative_holder_.mutable_cpu_data()[j];
 
-//      ++ top1_holder_.mutable_cpu_data()[j];
-//      if (top.size() > 1)
-//        ++top[1]->mutable_cpu_data()[j];
     }
     if ( ifright && predict_value >=0.5 )
       ++ positive_holder_.mutable_cpu_data()[j];
@@ -129,20 +114,6 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
       negative_holder_.mutable_cpu_data()[i] /= negative_counter_.cpu_data()[i];
   }
 
-//  for ( int i = 0 ; i < top1_holder_.count(); ++ i )
-//    top1_holder_.mutable_cpu_data()[i] /= batch_number_;
-
-//  if (top.size() > 1) {
-//    for (int i = 0; i < top[1]->count(); ++i) {
-//      top[1]->mutable_cpu_data()[i] /= batch_number_;
-//    }
-//  }
-
-//  top[0]->mutable_cpu_data()[0] = 0;
-//  for (int i = 0; i < top1_holder_.count(); ++i)
-//    top[0]->mutable_cpu_data()[0] += top1_holder_.mutable_cpu_data()[i]
-//      / attributes_number_;
-
   top[0]->mutable_cpu_data()[0] = 0;
 
   for ( int i = 0 ; i < positive_holder_.count() ; ++ i )
@@ -151,19 +122,8 @@ void MultiLabelAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
     top[0]->mutable_cpu_data()[0] += tmp / attributes_number_;
 
     if ( top.size() > 1 )
-    {
       top[1]->mutable_cpu_data()[i] = tmp;
-
-
-
-
-      top[2]->mutable_cpu_data()[i] = positive_counter_.mutable_cpu_data()[i] / batch_number_;
-    }
   }
-
-
-  //  LOG(INFO) << "Accuracy: " << top[0]->mutable_cpu_data()[0];
-  // Accuracy layer should not be used as a loss function.
 }
 
 INSTANTIATE_CLASS(MultiLabelAccuracyLayer);
