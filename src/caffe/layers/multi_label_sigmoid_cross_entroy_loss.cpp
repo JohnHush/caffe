@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <vector>
+#include <cfloat>
 
 #include "caffe/layers/multi_label_sigmoid_cross_entroy_loss.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -38,13 +39,29 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::LayerSetUp(
 
 	MLSCELPara_ = this->layer_param_.multi_label_sigmoid_cross_entropy_loss();
 
+	attributes_number_ = bottom[0]->shape(1);
+  mute_multiplier_.resize( attributes_number_ , 1. );
+  
+  if( multi_label_loss_para.mute_label_size() != 0 )
+  {
+    LOG(INFO) << "we've mute some labels" ;
+    for ( int index = 0 ; index < multi_label_loss_para.mute_label_size() ; ++ index )
+    {
+      int mute_label = multi_label_loss_para.mute_label(index);
+      CHECK_GE( mute_label , 0 ) << "mute label should be greater than 0 ";
+      CHECK_LT( mute_label , attributes_number_ ) << "mute label should be less "
+        << " than attributes number";
+
+      mute_multiplier_[mute_label] = 0;
+    }
+  }
+
 	// the number of positive_ratio should be NONE or equal to size of ATTRIBUTES in bottom[0]
 	has_positive_ratio_ = multi_label_loss_para.positive_ratio_size() !=0 ;
 	if ( has_positive_ratio_ )
 		CHECK_EQ( multi_label_loss_para.positive_ratio_size() , bottom[0]->shape(1) ) <<
 			" should set equal number of attributes' positive ratio";
 
-	attributes_number_ = bottom[0]->shape(1);
 	LOG(INFO) << " attributes number is " << attributes_number_;
 	epsilon_ = multi_label_loss_para.epsilon();
 	positive_ratio_.resize( attributes_number_  , 1 );
@@ -128,11 +145,15 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Forward_cpu(
 //    loss -= input_data[i] * (target[i] - (input_data[i] >= 0)) -
 //        log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0)));
     int att_index = i % attributes_number_;
+    if( mute_multiplier_[att_index] == 0 )
+      continue;
 
     if ( target_value == 1 )
-      loss -= attribute_weights_[att_index].first * log( sigmoid_output_->cpu_data()[i] + 1E-7);
+      loss -= attribute_weights_[att_index].first * 
+      log( std::max( sigmoid_output_->cpu_data()[i] , Dtype(FLT_MIN) ));
     if ( target_value == 0 )
-      loss -= attribute_weights_[att_index].second * log( 1. - sigmoid_output_->cpu_data()[i] + 1E-7 );
+      loss -= attribute_weights_[att_index].second *
+        log(std::max( Dtype( 1. - sigmoid_output_->cpu_data()[i]) , Dtype( FLT_MIN) ));
     ++valid_count;
   }
   normalizer_ = get_normalizer(normalization_, valid_count);
@@ -164,9 +185,11 @@ void MultiLabelSigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
       const int target_value = static_cast<int>(target[i]);
 
       if ( target_value == 1 )
-        diff_weight[i] = attribute_weights_[att_index].first;
+        diff_weight[i] = attribute_weights_[att_index].first * 
+          mute_multiplier_[att_index];
       if ( target_value == 0 )
-        diff_weight[i] = attribute_weights_[att_index].second;
+        diff_weight[i] = attribute_weights_[att_index].second *
+          mute_multiplier_[att_index];
     }
 
     caffe_mul( count, bottom_diff , diff_weight , bottom_diff );

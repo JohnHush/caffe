@@ -87,6 +87,8 @@ class MultiLabelSigmoidCrossEntropyLossLayer : public LossLayer<Dtype> {
 	Dtype epsilon_;
 	int attributes_number_;
 	bool has_positive_ratio_;
+
+  std::vector<Dtype> mute_multiplier_;
 };
 
 }  // namespace caffe
