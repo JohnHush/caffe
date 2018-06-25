@@ -335,10 +335,6 @@ void RPNLayer<Dtype>::Forward_cpu( const vector<Blob<Dtype>*>& bottom, const vec
   }    
 }
 
-#ifdef CPU_ONLY
-STUB_GPU(RPNLayer);
-#endif
-
 INSTANTIATE_CLASS(RPNLayer);
 REGISTER_LAYER_CLASS(RPN);
 

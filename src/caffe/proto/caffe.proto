@@ -1184,6 +1184,7 @@ message HingeLossParameter {
 message MultiLabelSigmoidCrossEntropyLossParameter {
 	repeated float positive_ratio = 1;
 	optional float epsilon = 2 [default = 1];
+  repeated uint32 mute_label = 3;
 }
 
 message ImageDataParameter {
