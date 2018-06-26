@@ -27,9 +27,14 @@ include(cmake/Summary.cmake)
 include(cmake/ConfigGen.cmake)
 
 # ---[ Options
-caffe_option(CPU_ONLY  "Build Caffe without CUDA support" OFF) # TODO: rename to USE_CUDA
+if( APPLE )
+  caffe_option(CPU_ONLY  "Build Caffe without CUDA support" ON) # TODO: rename to USE_CUDA
+  caffe_option(USE_NCCL "Build Caffe with NCCL library support" OFF)
+else()
+  caffe_option(CPU_ONLY  "Build Caffe without CUDA support" OFF) # TODO: rename to USE_CUDA
+  caffe_option(USE_NCCL "Build Caffe with NCCL library support" ON)
+endif()
 caffe_option(USE_CUDNN "Build Caffe with cuDNN library support" ON IF NOT CPU_ONLY)
-caffe_option(USE_NCCL "Build Caffe with NCCL library support" ON)
 caffe_option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 caffe_option(BUILD_python "Build Python wrapper" ON)
 set(python_version "2" CACHE STRING "Specify which Python version to use")
