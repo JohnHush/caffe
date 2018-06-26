@@ -19,7 +19,7 @@ using std::vector;
 template <typename Dtype>
 void FrcnnProposalLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
   const vector<Blob<Dtype> *> &top) {
-
+/*
 #ifndef CPU_ONLY
   CUDA_CHECK(cudaMalloc(&anchors_, sizeof(float) * FrcnnParam::anchors.size()));
   CUDA_CHECK(cudaMemcpy(anchors_, &(FrcnnParam::anchors[0]),
@@ -35,6 +35,7 @@ void FrcnnProposalLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
   CUDA_CHECK(cudaMalloc(&gpu_keep_indices_, sizeof(int) * rpn_post_nms_top_n));
 
 #endif
+*/
   top[0]->Reshape(1, 5, 1, 1);
   if (top.size() > 1) {
     top[1]->Reshape(1, 1, 1, 1);
@@ -183,10 +184,11 @@ void FrcnnProposalLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
     }
   }
 }
-
+/*
 #ifdef CPU_ONLY
 STUB_GPU(FrcnnProposalLayer);
 #endif
+*/
 
 INSTANTIATE_CLASS(FrcnnProposalLayer);
 REGISTER_LAYER_CLASS(FrcnnProposal);
