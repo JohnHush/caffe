@@ -62,6 +62,14 @@ void vis_detections(cv::Mat & frame, const std::vector<BBox<Dtype> >& ans, const
 template <typename Dtype>
 void vis_detections(cv::Mat & frame, const BBox<Dtype> ans, const std::map<int,std::string> CLASS); 
 
+template <typename Dtype>
+void vis_detections_v2( cv::Mat & frame,
+                        const std::vector<BBox<Dtype> >& ans,
+                        const std::map<int,std::string> CLASS,
+                        const int resize_width = 1080, 
+                        const int resize_heigh = 720 ); 
+
+
 }  // namespace frcnn
 
 }  // namespace caffe

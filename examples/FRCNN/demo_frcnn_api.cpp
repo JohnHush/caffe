@@ -87,12 +87,13 @@ int main(int argc, char** argv){
       if (cur_res.size() == 0) continue;
       cv::Mat ori ; 
       image.convertTo(ori, CV_32FC3);
-      caffe::Frcnn::vis_detections(ori, cur_res, caffe::Frcnn::LoadVocClass() );
+      caffe::Frcnn::vis_detections_v2(ori, cur_res, caffe::Frcnn::LoadVocClass() , 1920, 1080 );
       std::string name = out_dir+images[index];
       char xx[100];
       sprintf(xx, "%s_%s.jpg", name.c_str(), caffe::Frcnn::GetClassName(caffe::Frcnn::LoadVocClass(),label).c_str());
       cv::imwrite(std::string(xx), ori);
     }
   }
+  printf( "succeed!\n" );
   return 0;
 }
