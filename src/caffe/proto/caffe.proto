@@ -439,12 +439,6 @@ message LayerParameter {
 
 }
 
-// added by John Hush
-message MultiLabelSigmoidCrossEntropyLossParameter {
-  repeated float positive_ratio = 1;
-  optional float epsilon = 2 [default = 1];
-}
-
 // Xuanyi ..
 
 message VideoDataParameter{
